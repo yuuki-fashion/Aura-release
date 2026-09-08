@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA FASHION - 公式EC新作カタログ</title>
+    <title>AURA FASHION</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #0b0d14; color: #f3f4f6; font-family: -apple-system, sans-serif; padding: 20px; }
+        body { background-color: #0b0d14; color: #f3f4f6; font-family: sans-serif; padding: 20px; }
         header { max-width: 1200px; margin: 0 auto 30px; border-bottom: 1px solid #1f2937; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         h1 { font-size: 22px; letter-spacing: 2px; }
         .grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
@@ -28,7 +28,7 @@
         <div id="count" style="color:#9ca3af; font-size: 13px;">読み込み中...</div>
     </header>
 
-    <div id="loading">公式ECのデータを取得中...</div>
+    <div id="loading">データを更新中...</div>
     <div class="grid" id="product-grid" style="display:none;"></div>
 
     <script>
@@ -49,15 +49,14 @@
                 loading.style.display = 'none';
                 grid.style.display = 'grid';
 
-                if (!Array.isArray(data) || data.length === 0) {
-                    loading.style.display = 'block';
-                    loading.innerText = 'データがありません。';
-                    count.innerText = '0 件';
-                    return;
-                }
-
-                // 画像と価格があるデータのみフィルター
-                const validData = data.filter(i => i.image_url && i.price);
+                // 有効な服データ（ニュースやNaNを除く）
+                const validData = data.filter(i => 
+                    i.image_url && 
+                    i.image_url.startsWith('http') && 
+                    i.price && 
+                    !isNaN(Number(i.price)) &&
+                    !i.product_name.includes('プレスリリース')
+                );
 
                 count.innerText = `全 ${validData.length} 件の新作服`;
                 grid.innerHTML = '';
@@ -71,7 +70,7 @@
                             <div class="badge">OFFICIAL</div>
                         </div>
                         <div class="info">
-                            <div class="brand">${item.brand || 'BRAND'}</div>
+                            <div class="brand">${item.brand || 'BEAMS'}</div>
                             <div class="title">${item.product_name}</div>
                             <div class="price">¥${Number(item.price).toLocaleString()}</div>
                             <a href="${item.source_url}" target="_blank" rel="noopener" class="btn">公式ストアで購入 ↗</a>

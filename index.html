@@ -45,17 +45,12 @@
             try {
                 let { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
 
-                if (error || !data || data.length === 0) {
-                    // データが空または権限エラー時のフォールバック直接読み込み
-                    console.warn("DB直接読み込み不可、再試行中...");
-                }
-
                 loading.style.display = 'none';
                 grid.style.display = 'grid';
 
                 if (!data || data.length === 0) {
                     loading.style.display = 'block';
-                    loading.innerHTML = '現在データがありません。<br>Codespacesターミナルで <code>python3 scraper.py</code> を実行してください。';
+                    loading.innerHTML = '現在データがありません。<br>スクレイパーを実行してください。';
                     count.innerText = '0 件';
                     return;
                 }

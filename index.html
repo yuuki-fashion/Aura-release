@@ -1,289 +1,198 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA FASHION - Brand Catalog</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA FASHION - 新作服ノミネートカタログ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0d0f17;
+            color: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 20px;
+        }
+        header {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1f2937;
+            padding-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: #ffffff;
+        }
+        .stats {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+        .grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background-color: #161b26;
+            border: 1px solid #232d3f;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: #3b82f6;
+        }
+        .img-wrap {
+            width: 100%;
+            height: 280px;
+            background-color: #05070a;
+            position: relative;
+        }
+        .img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .info {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .brand {
+            font-size: 12px;
+            color: #60a5fa;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .title {
+            font-size: 14px;
+            color: #e5e7eb;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 38px;
+        }
+        .price {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-top: auto;
+        }
+        .btn {
+            display: block;
+            margin-top: 12px;
+            text-align: center;
+            background-color: #2563eb;
+            color: #fff;
+            text-decoration: none;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .btn:hover { background-color: #1d4ed8; }
+        #loading {
+            text-align: center;
+            padding: 100px 0;
+            color: #9ca3af;
+            font-size: 18px;
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8">
+<body>
+    <header>
+        <h1>AURA FASHION <span style="font-size:12px; color:#3b82f6; font-weight:normal;">NEW ARRIVALS</span></h1>
+        <div class="stats" id="count">読み込み中...</div>
+    </header>
 
-  <!-- ヘッダー -->
-  <header class="max-w-7xl mx-auto mb-6 border-b border-slate-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-      <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-amber-200 via-rose-300 to-indigo-300 bg-clip-text text-transparent">
-        AURA FASHION
-      </h1>
-      <p class="text-slate-400 text-xs mt-1">ブランド別・アイテム別 リアルタイムファッションカタログ</p>
-    </div>
-    
-    <div id="item-count" class="text-xs text-slate-400 bg-slate-900 px-3.5 py-1.5 rounded-full border border-slate-800 w-fit">
-      データを読み込み中...
-    </div>
-  </header>
+    <div id="loading">ブランド公式サイトから新作アイテムを取得中...</div>
+    <div class="grid" id="product-grid" style="display:none;"></div>
 
-  <!-- コントロールパネル -->
-  <div class="max-w-7xl mx-auto mb-8 bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
-    
-    <!-- 検索バー ＆ ソート -->
-    <div class="flex flex-col sm:flex-row gap-3">
-      <div class="relative flex-1">
-        <input type="text" id="search-input" placeholder="ブランド名、アイテム名、キーワードで自由検索..." 
-               class="w-full bg-slate-800 border border-slate-700 text-sm rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-rose-400 transition-all">
-      </div>
+    <script>
+        const SUPABASE_URL = "https://wimjkvkprixuumnuabjd.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      <select id="sort-select" class="bg-slate-800 border border-slate-700 text-sm rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-rose-400">
-        <option value="brand-asc">ブランド名 (50音・A-Z順)</option>
-        <option value="price-asc">価格の安い順</option>
-        <option value="price-desc">価格の高い順</option>
-        <option value="newest">新着順</option>
-      </select>
-    </div>
+        async function fetchProducts() {
+            try {
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-    <!-- アイテム（カテゴリ）フィルター -->
-    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-b border-slate-800/60 pb-3">
-      <span class="text-xs font-semibold text-rose-400 whitespace-nowrap mr-1">アイテム:</span>
-      <div id="category-filters" class="flex gap-1.5 flex-nowrap">
-        <button data-cat="ALL" class="cat-btn bg-rose-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap">
-          すべてのアイテム
-        </button>
-      </div>
-    </div>
+                if (error) throw error;
 
-    <!-- ブランドフィルター (50音順) -->
-    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-      <span class="text-xs font-semibold text-indigo-400 whitespace-nowrap mr-1">ブランド:</span>
-      <div id="brand-filters" class="flex gap-1.5 flex-nowrap">
-        <button data-brand="ALL" class="brand-btn bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap">
-          全ブランド
-        </button>
-      </div>
-    </div>
-  </div>
+                const grid = document.getElementById('product-grid');
+                const loading = document.getElementById('loading');
+                const count = document.getElementById('count');
 
-  <!-- メインコンテンツ -->
-  <main class="max-w-7xl mx-auto">
-    <div id="loading" class="text-center text-slate-400 py-20 flex flex-col items-center gap-3">
-      <div class="w-8 h-8 border-2 border-rose-400 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-sm">全データを読み込み中...</p>
-    </div>
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
 
-    <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 hidden"></div>
-  </main>
+                if (!data || data.length === 0) {
+                    loading.style.display = 'block';
+                    loading.innerText = '現在登録されている新作アイテムがありません。スクレイパーを実行してください。';
+                    count.innerText = '0件の新作';
+                    return;
+                }
 
-  <script>
-    const SUPABASE_URL = 'https://wimjkvkprixuumnuabjd.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU';
-    
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                count.innerText = `全 ${data.length} 件の新作服を掲載中`;
+                grid.innerHTML = '';
 
-    let allProducts = [];
-    let activeBrand = 'ALL';
-    let activeCategory = 'ALL';
+                data.forEach(item => {
+                    const priceFormatted = item.price ? `¥${Number(item.price).toLocaleString()}` : '価格情報なし';
+                    const imgUrl = item.image_url || 'https://via.placeholder.com/300x400?text=NO+IMAGE';
 
-    // 全件取得（ページネーション処理）
-    async function loadCatalog() {
-      const loadingEl = document.getElementById('loading');
-      const gridEl = document.getElementById('product-grid');
-
-      try {
-        let page = 0;
-        const pageSize = 1000;
-        let fetchedData = [];
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabaseClient
-            .from('products')
-            .select('*')
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-
-          if (error) throw error;
-          
-          if (data && data.length > 0) {
-            fetchedData = [...fetchedData, ...data];
-            if (data.length < pageSize) hasMore = false;
-            page++;
-          } else {
-            hasMore = false;
-          }
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="img-wrap">
+                            <img src="${imgUrl}" alt="${item.product_name}" onerror="this.src='https://via.placeholder.com/300x400?text=IMAGE+ERROR'">
+                            <div class="badge">NEW</div>
+                        </div>
+                        <div class="info">
+                            <div class="brand">${item.brand || 'BRAND'}</div>
+                            <div class="title">${item.product_name || '名称未設定'}</div>
+                            <div class="price">${priceFormatted}</div>
+                            <a href="${item.source_url}" target="_blank" rel="noopener" class="btn">公式ストアで見る</a>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loading').innerText = 'データの取得に失敗しました。';
+            }
         }
 
-        allProducts = fetchedData;
-        loadingEl.classList.add('hidden');
-        gridEl.classList.remove('hidden');
-
-        setupFilters();
-        renderProducts();
-      } catch (err) {
-        console.error('Catalog Error:', err);
-        loadingEl.innerHTML = `<span class="text-rose-400 text-sm">【データ取得エラー】<br>${err.message}</span>`;
-      }
-    }
-
-    // フィルターボタン動的生成
-    function setupFilters() {
-      // ブランド一覧
-      const brandContainer = document.getElementById('brand-filters');
-      const brands = [...new Set(allProducts.map(p => p.brand || 'その他'))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ja'));
-
-      brands.forEach(brand => {
-        const btn = document.createElement('button');
-        btn.dataset.brand = brand;
-        btn.className = 'brand-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
-        btn.innerText = brand;
-        btn.onclick = () => filterByBrand(brand);
-        brandContainer.appendChild(btn);
-      });
-
-      // カテゴリ（アイテム）一覧
-      const catContainer = document.getElementById('category-filters');
-      const categories = [...new Set(allProducts.map(p => p.category || p.item_type || p.type || 'その他'))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ja'));
-
-      categories.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.dataset.cat = cat;
-        btn.className = 'cat-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
-        btn.innerText = cat;
-        btn.onclick = () => filterByCategory(cat);
-        catContainer.appendChild(btn);
-      });
-    }
-
-    function filterByBrand(brand) {
-      activeBrand = brand;
-      document.querySelectorAll('.brand-btn').forEach(btn => {
-        if (btn.dataset.brand === brand) {
-          btn.className = 'brand-btn bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap';
-        } else {
-          btn.className = 'brand-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
-        }
-      });
-      renderProducts();
-    }
-
-    function filterByCategory(cat) {
-      activeCategory = cat;
-      document.querySelectorAll('.cat-btn').forEach(btn => {
-        if (btn.dataset.cat === cat) {
-          btn.className = 'cat-btn bg-rose-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap';
-        } else {
-          btn.className = 'cat-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
-        }
-      });
-      renderProducts();
-    }
-
-    // 価格フォーマット関数の強化
-    function parsePrice(item) {
-      const rawPrice = item.price || item.product_price || item.formatted_price || item.price_str;
-      if (!rawPrice) return { num: 0, display: '価格記載なし' };
-
-      if (typeof rawPrice === 'number') {
-        return { num: rawPrice, display: `¥${rawPrice.toLocaleString()}` };
-      }
-
-      // 文字列から数値だけ抽出（例: "￥12,800(税込)" -> 12800）
-      const cleaned = String(rawPrice).replace(/[^0-9]/g, '');
-      const num = parseInt(cleaned, 10);
-
-      if (!isNaN(num) && num > 0) {
-        return { num: num, display: `¥${num.toLocaleString()}` };
-      }
-
-      return { num: 0, display: String(rawPrice) };
-    }
-
-    // 描画 & ソート
-    function renderProducts() {
-      const gridEl = document.getElementById('product-grid');
-      const searchVal = document.getElementById('search-input').value.toLowerCase();
-      const sortVal = document.getElementById('sort-select').value;
-
-      let items = allProducts.filter(item => {
-        const itemCat = item.category || item.item_type || item.type || 'その他';
-        const matchBrand = activeBrand === 'ALL' || (item.brand || 'その他') === activeBrand;
-        const matchCat = activeCategory === 'ALL' || itemCat === activeCategory;
-        
-        const matchSearch = (item.product_name || '').toLowerCase().includes(searchVal) || 
-                            (item.brand || '').toLowerCase().includes(searchVal) ||
-                            itemCat.toLowerCase().includes(searchVal);
-
-        return matchBrand && matchCat && matchSearch;
-      });
-
-      // ソート処理
-      items.sort((a, b) => {
-        const pA = parsePrice(a).num;
-        const pB = parsePrice(b).num;
-
-        if (sortVal === 'brand-asc') {
-          return (a.brand || '').localeCompare(b.brand || '', 'ja');
-        } else if (sortVal === 'price-asc') {
-          return pA - pB;
-        } else if (sortVal === 'price-desc') {
-          return pB - pA;
-        } else if (sortVal === 'newest') {
-          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-        }
-      });
-
-      document.getElementById('item-count').innerText = `表示中: ${items.length} 件 / 全 ${allProducts.length} 件`;
-
-      if (items.length === 0) {
-        gridEl.innerHTML = '<div class="col-span-full text-center text-slate-500 py-12 text-sm">条件に一致する商品が見つかりませんでした。</div>';
-        return;
-      }
-
-      gridEl.innerHTML = items.map(item => {
-        const priceInfo = parsePrice(item);
-        const imgUrl = item.image_url || item.img_url || item.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';
-
-        return `
-          <div class="group bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden hover:border-slate-700 transition-all flex flex-col justify-between">
-            <div>
-              <!-- 画像 -->
-              <div class="aspect-square w-full bg-slate-800 overflow-hidden relative">
-                <img src="${imgUrl}" alt="${item.product_name || 'Item'}" 
-                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';">
-                <span class="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-md text-slate-300 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-slate-800">
-                  ${item.brand || 'Brand'}
-                </span>
-              </div>
-
-              <!-- 情報 -->
-              <div class="p-3.5">
-                <h2 class="font-medium text-xs md:text-sm text-slate-200 line-clamp-2 mb-2 group-hover:text-rose-300 transition-colors">
-                  ${item.product_name || '名称未設定'}
-                </h2>
-              </div>
-            </div>
-
-            <div class="p-3.5 pt-0">
-              <div class="text-sm font-bold text-rose-300 mb-3">
-                ${priceInfo.display}
-              </div>
-              <a href="${item.source_url || '#'}" target="_blank" rel="noopener noreferrer" 
-                 class="block text-center text-xs font-semibold py-2 px-3 bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-300 rounded-xl transition-all">
-                詳細を見る ↗
-              </a>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // リスナ設定
-    document.getElementById('search-input').addEventListener('input', renderProducts);
-    document.getElementById('sort-select').addEventListener('change', renderProducts);
-
-    loadCatalog();
-  </script>
+        fetchProducts();
+    </script>
 </body>
 </html>

@@ -7,8 +7,8 @@ SUPABASE_URL = "https://wimjkvkprixuumnuabjd.supabase.co"
 SUPABASE_KEY = "sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def save_product(brand, product_name, price, image_url, source_url, category="アウター"):
-    """Supabaseに新着商品を保存"""
+def save_product(brand, product_name, price, image_url, source_url, category="NEW"):
+    """Supabaseへ新作服アイテムを確実に保存"""
     if not product_name or not price or not source_url:
         return
         
@@ -22,87 +22,73 @@ def save_product(brand, product_name, price, image_url, source_url, category="�
     }
     try:
         supabase.table("products").upsert(data, on_conflict="source_url").execute()
-        print(f"✅ [保存成功] {brand} | {product_name} | ¥{price:,}")
+        print(f"👕 [新作服追加] {brand} | {product_name} | ¥{price:,}")
     except Exception as e:
         print(f"❌ DB保存エラー: {e}")
 
-async def crawl_official_stores():
+async def crawl_brand_stores():
+    print("🚀 ブランド公式サイトの【新作アイテム】直収集を開始します...")
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = await context.new_page()
 
-        print("🚀 ブランド公式サイト・公式ECからの新着アイテム直収集を開始します...")
+        # BEAMS 新作服一覧ページ
+        try:
+            print("🔎 BEAMS 公式新作ページを巡回中...")
+            await page.goto("https://www.beams.co.jp/item/", wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_timeout(3000)
+            
+            # 画像の遅延読み込み対策で少しスクロール
+            await page.evaluate("window.scrollTo(0, 1500)")
+            await page.wait_for_timeout(2000)
 
-        # 収集対象の公式ECリスト（順次拡張可能）
-        # 各サイトのHTML/DOM構造に合わせて正確に抽出
-        targets = [
-            {
-                "brand_default": "BEAMS",
-                "url": "https://www.beams.co.jp/item/",
-                "item_selector": ".item-list-item",
-                "name_selector": ".item-name",
-                "price_selector": ".item-price",
-                "img_selector": "img",
-                "link_selector": "a"
-            }
-        ]
+            items = await page.query_selector_all(".item-list-item")
+            print(f"📦 BEAMSで検出した新作服: {len(items)}件")
 
-        for target in targets:
-            try:
-                print(f"🔎 巡回中: {target['url']}")
-                await page.goto(target['url'], wait_until="networkidle", timeout=60000)
-                await page.wait_for_timeout(3000)
+            for item in items[:30]:
+                try:
+                    name_el = await item.query_selector(".item-name")
+                    price_el = await item.query_selector(".item-price")
+                    img_el = await item.query_selector("img")
+                    link_el = await item.query_selector("a")
 
-                # スクロールして画像を読み込ませる
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 2)")
-                await page.wait_for_timeout(2000)
-
-                items = await page.query_selector_all(target['item_selector'])
-                print(f"📦 検出アイテム数: {len(items)}件")
-
-                for item in items:
-                    try:
-                        name_el = await item.query_selector(target['name_selector'])
-                        price_el = await item.query_selector(target['price_selector'])
-                        img_el = await item.query_selector(target['img_selector'])
-                        link_el = await item.query_selector(target['link_selector'])
-
-                        if not name_el or not price_el or not link_el:
-                            continue
-
-                        product_name = (await name_el.inner_text()).strip()
-                        price_text = await price_el.inner_text()
-                        
-                        # 価格から数値抽出 (例: "¥12,800" -> 12800)
-                        cleaned_price = re.sub(r'[^\d]', '', price_text)
-                        if not cleaned_price:
-                            continue
-                        price = int(cleaned_price)
-
-                        source_url = await link_el.get_attribute("href")
-                        if source_url and not source_url.startswith("http"):
-                            source_url = f"https://www.beams.co.jp{source_url}"
-
-                        image_url = ""
-                        if img_el:
-                            image_url = await img_el.get_attribute("src") or await img_el.get_attribute("data-src") or ""
-
-                        save_product(
-                            brand=target['brand_default'],
-                            product_name=product_name,
-                            price=price,
-                            image_url=image_url,
-                            source_url=source_url,
-                            category="トップス"
-                        )
-                    except Exception as item_err:
+                    if not name_el or not price_el or not link_el:
                         continue
 
-            except Exception as e:
-                print(f"⚠️ エラー ({target['url']}): {e}")
+                    product_name = (await name_el.inner_text()).strip()
+                    price_text = await price_el.inner_text()
+                    
+                    cleaned_price = re.sub(r'[^\d]', '', price_text)
+                    if not cleaned_price:
+                        continue
+                    price = int(cleaned_price)
+
+                    source_url = await link_el.get_attribute("href") or ""
+                    if source_url and not source_url.startswith("http"):
+                        source_url = f"https://www.beams.co.jp{source_url}"
+
+                    image_url = ""
+                    if img_el:
+                        image_url = await img_el.get_attribute("src") or await img_el.get_attribute("data-src") or ""
+
+                    save_product(
+                        brand="BEAMS",
+                        product_name=product_name,
+                        price=price,
+                        image_url=image_url,
+                        source_url=source_url,
+                        category="NEW"
+                    )
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"⚠️ エラー: {e}")
 
         await browser.close()
 
 if __name__ == "__main__":
-    asyncio.run(crawl_official_stores())
-    print("✨ 全クロール処理が完了しました。")
+    asyncio.run(crawl_brand_stores())
+    print("✨ 新作服の自動収集が完了しました。")

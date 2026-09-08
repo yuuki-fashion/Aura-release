@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURA FASHION - 新作服カタログ</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #0d0f17; color: #f3f4f6; font-family: sans-serif; padding: 20px; }
@@ -35,7 +34,6 @@
     <script>
         const SUPABASE_URL = "https://wimjkvkprixuumnuabjd.supabase.co";
         const SUPABASE_KEY = "sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU";
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function fetchProducts() {
             const grid = document.getElementById('product-grid');
@@ -43,14 +41,22 @@
             const count = document.getElementById('count');
 
             try {
-                let { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+                // Direct REST API fetch to bypass SDK policy blocks
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*&order=created_at.desc`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+
+                const data = await res.json();
 
                 loading.style.display = 'none';
                 grid.style.display = 'grid';
 
-                if (!data || data.length === 0) {
+                if (!Array.isArray(data) || data.length === 0) {
                     loading.style.display = 'block';
-                    loading.innerHTML = '現在データがありません。<br>スクレイパーを実行してください。';
+                    loading.innerHTML = '現在データが登録されていません。<br><code>python3 scraper.py</code> を実行してください。';
                     count.innerText = '0 件';
                     return;
                 }
@@ -66,7 +72,7 @@
                     card.className = 'card';
                     card.innerHTML = `
                         <div class="img-wrap">
-                            <img src="${imgUrl}" alt="${item.product_name}">
+                            <img src="${imgUrl}" alt="${item.product_name}" onerror="this.src='https://via.placeholder.com/300x400?text=IMAGE+ERROR'">
                             <div class="badge">NEW</div>
                         </div>
                         <div class="info">

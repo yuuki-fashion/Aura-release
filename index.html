@@ -3,35 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA FASHION - 公式EC新作アイテムカタログ</title>
+    <title>AURA FASHION - 公式EC新作カタログ</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #0b0d14; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; }
+        body { background-color: #0b0d14; color: #f3f4f6; font-family: -apple-system, sans-serif; padding: 20px; }
         header { max-width: 1200px; margin: 0 auto 30px; border-bottom: 1px solid #1f2937; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         h1 { font-size: 22px; letter-spacing: 2px; }
-        .sub-tag { font-size: 11px; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(59,130,246,0.3); margin-left: 10px; }
         .grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
-        .card { background-color: #121722; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s; }
-        .card:hover { transform: translateY(-3px); border-color: #3b82f6; }
-        .img-wrap { width: 100%; height: 290px; background-color: #080a0f; position: relative; }
-        .img-wrap img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+        .card { background-color: #121722; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+        .img-wrap { width: 100%; height: 280px; background-color: #080a0f; position: relative; }
+        .img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .badge { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; }
         .info { padding: 14px; display: flex; flex-direction: column; flex-grow: 1; }
-        .brand { font-size: 11px; color: #60a5fa; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-        .title { font-size: 13px; color: #e5e7eb; line-height: 1.4; margin-bottom: 12px; height: 36px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        .price { font-size: 16px; font-weight: bold; color: #ffffff; margin-top: auto; }
+        .brand { font-size: 11px; color: #60a5fa; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .title { font-size: 13px; color: #e5e7eb; line-height: 1.4; margin-bottom: 12px; height: 36px; overflow: hidden; }
+        .price { font-size: 16px; font-weight: bold; color: #22c55e; margin-top: auto; }
         .btn { display: block; margin-top: 12px; text-align: center; background-color: #2563eb; color: #fff; text-decoration: none; padding: 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-        .btn:hover { background-color: #1d4ed8; }
         #loading { text-align: center; padding: 100px 0; color: #9ca3af; font-size: 16px; }
     </style>
 </head>
 <body>
     <header>
-        <h1>AURA FASHION <span class="sub-tag">OFFICIAL STORE DIRECT</span></h1>
+        <h1>AURA FASHION</h1>
         <div id="count" style="color:#9ca3af; font-size: 13px;">読み込み中...</div>
     </header>
 
-    <div id="loading">各ブランド公式サイトから最新の販売アイテムを取得中...</div>
+    <div id="loading">公式ECのデータを取得中...</div>
     <div class="grid" id="product-grid" style="display:none;"></div>
 
     <script>
@@ -54,32 +51,29 @@
 
                 if (!Array.isArray(data) || data.length === 0) {
                     loading.style.display = 'block';
-                    loading.innerText = '掲載データがありません。スクレイパーを実行してください。';
+                    loading.innerText = 'データがありません。';
                     count.innerText = '0 件';
                     return;
                 }
 
-                count.innerText = `全 ${data.length} 件の新作服を掲載中`;
+                // 画像と価格があるデータのみフィルター
+                const validData = data.filter(i => i.image_url && i.price);
+
+                count.innerText = `全 ${validData.length} 件の新作服`;
                 grid.innerHTML = '';
 
-                data.forEach(item => {
-                    // 公式ストアの正規価格と画像のみを出力
-                    const priceFormatted = item.price ? `¥${Number(item.price).toLocaleString()}` : '価格未定';
-                    const imgUrl = item.image_url;
-
-                    if (!imgUrl || item.price === 0) return; // 画像・価格が欠落しているデータは除外
-
+                validData.forEach(item => {
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.innerHTML = `
                         <div class="img-wrap">
-                            <img src="${imgUrl}" alt="${item.product_name}">
-                            <div class="badge">OFFICIAL NEW</div>
+                            <img src="${item.image_url}" alt="${item.product_name}">
+                            <div class="badge">OFFICIAL</div>
                         </div>
                         <div class="info">
                             <div class="brand">${item.brand || 'BRAND'}</div>
                             <div class="title">${item.product_name}</div>
-                            <div class="price">${priceFormatted}</div>
+                            <div class="price">¥${Number(item.price).toLocaleString()}</div>
                             <a href="${item.source_url}" target="_blank" rel="noopener" class="btn">公式ストアで購入 ↗</a>
                         </div>
                     `;
@@ -87,7 +81,7 @@
                 });
             } catch (err) {
                 console.error(err);
-                loading.innerText = 'データ読み込みエラーが発生しました。';
+                loading.innerText = 'エラーが発生しました。';
             }
         }
 

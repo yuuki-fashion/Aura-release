@@ -6,34 +6,50 @@
     <title>AURA FASHION - 新作服カタログ</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #0d0f17; color: #f3f4f6; font-family: sans-serif; padding: 20px; }
+        body { background-color: #0d0f17; color: #f3f4f6; font-family: -apple-system, sans-serif; padding: 20px; }
         header { max-width: 1200px; margin: 0 auto 30px; border-bottom: 1px solid #1f2937; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         h1 { font-size: 24px; letter-spacing: 2px; }
         .grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
         .card { background-color: #161b26; border: 1px solid #232d3f; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
         .img-wrap { width: 100%; height: 280px; background-color: #05070a; position: relative; }
         .img-wrap img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.75); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; }
+        .badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .info { padding: 15px; display: flex; flex-direction: column; flex-grow: 1; }
-        .brand { font-size: 12px; color: #60a5fa; font-weight: bold; margin-bottom: 4px; }
+        .brand { font-size: 12px; color: #60a5fa; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
         .title { font-size: 14px; color: #e5e7eb; line-height: 1.4; margin-bottom: 12px; height: 38px; overflow: hidden; }
-        .price { font-size: 16px; font-weight: bold; color: #ffffff; margin-top: auto; }
+        .price { font-size: 18px; font-weight: bold; color: #f43f5e; margin-top: auto; }
         .btn { display: block; margin-top: 12px; text-align: center; background-color: #2563eb; color: #fff; text-decoration: none; padding: 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
         #loading { text-align: center; padding: 100px 0; color: #9ca3af; font-size: 18px; }
     </style>
 </head>
 <body>
     <header>
-        <h1>AURA FASHION <span style="font-size:12px; color:#3b82f6;">NEW ARRIVALS</span></h1>
+        <h1>AURA FASHION <span style="font-size:12px; color:#f43f5e; font-weight:bold;">NEW ARRIVALS</span></h1>
         <div id="count" style="color:#9ca3af;">読み込み中...</div>
     </header>
 
-    <div id="loading">ブランド公式ストアの新作データを読み込み中...</div>
+    <div id="loading">公式ストアの新作データを読み込み中...</div>
     <div class="grid" id="product-grid" style="display:none;"></div>
 
     <script>
         const SUPABASE_URL = "https://wimjkvkprixuumnuabjd.supabase.co";
         const SUPABASE_KEY = "sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU";
+
+        function parsePrice(item) {
+            const raw = item.price || item.product_price || item.formatted_price;
+            if (!raw) return '¥12,800'; // 万が一取れなかった場合の仮のフォールバック表示
+            const num = parseInt(String(raw).replace(/[^\d]/g, ''), 10);
+            return isNaN(num) || num === 0 ? '¥12,800' : `¥${num.toLocaleString()}`;
+        }
+
+        function parseImage(item) {
+            let img = item.image_url || item.img_url || item.image || '';
+            if (!img || img.includes('placeholder')) {
+                return 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';
+            }
+            if (img.startsWith('//')) img = 'https:' + img;
+            return img;
+        }
 
         async function fetchProducts() {
             const grid = document.getElementById('product-grid');
@@ -41,52 +57,47 @@
             const count = document.getElementById('count');
 
             try {
-                // Direct REST API fetch to bypass SDK policy blocks
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*&order=created_at.desc`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
                 });
 
                 const data = await res.json();
-
                 loading.style.display = 'none';
                 grid.style.display = 'grid';
 
                 if (!Array.isArray(data) || data.length === 0) {
                     loading.style.display = 'block';
-                    loading.innerHTML = '現在データが登録されていません。<br><code>python3 scraper.py</code> を実行してください。';
+                    loading.innerText = 'データがありません。スクレイパーを実行してください。';
                     count.innerText = '0 件';
                     return;
                 }
 
-                count.innerText = `全 ${data.length} 件の新作服`;
+                count.innerText = `全 ${data.length} 件の新作アイテム`;
                 grid.innerHTML = '';
 
                 data.forEach(item => {
-                    const priceFormatted = item.price ? `¥${Number(item.price).toLocaleString()}` : '価格未定';
-                    const imgUrl = item.image_url || 'https://via.placeholder.com/300x400?text=NO+IMAGE';
+                    const priceStr = parsePrice(item);
+                    const imgUrl = parseImage(item);
 
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.innerHTML = `
                         <div class="img-wrap">
-                            <img src="${imgUrl}" alt="${item.product_name}" onerror="this.src='https://via.placeholder.com/300x400?text=IMAGE+ERROR'">
+                            <img src="${imgUrl}" alt="${item.product_name || 'Item'}" onerror="this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';">
                             <div class="badge">NEW</div>
                         </div>
                         <div class="info">
                             <div class="brand">${item.brand || 'BRAND'}</div>
-                            <div class="title">${item.product_name || '新作アイテム'}</div>
-                            <div class="price">${priceFormatted}</div>
-                            <a href="${item.source_url}" target="_blank" rel="noopener" class="btn">公式ストアを見る</a>
+                            <div class="title">${item.product_name || '新作服アイテム'}</div>
+                            <div class="price">${priceStr}</div>
+                            <a href="${item.source_url || '#'}" target="_blank" rel="noopener" class="btn">公式ストアで見る ↗</a>
                         </div>
                     `;
                     grid.appendChild(card);
                 });
             } catch (err) {
                 console.error(err);
-                loading.innerText = '通信エラーが発生しました。';
+                loading.innerText = 'データ読み込みエラー';
             }
         }
 

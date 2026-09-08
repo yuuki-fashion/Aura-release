@@ -1,0 +1,18 @@
+[
+  {
+    "brand": "レインメーカー",
+    "product_name": "タキシード ジャケット",
+    "price": "143000",
+    "release_date": "2024-08-10",
+    "category": "アウター",
+    "image_url": null
+  },
+  {
+    "brand": "レインメーカー",
+    "product_name": "トラウザーズ",
+    "price": "93500",
+    "release_date": "2024-08-10",
+    "category": "パンツ",
+    "image_url": null
+  }
+]

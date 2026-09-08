@@ -3,81 +3,287 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA - Brand News Tracker</title>
+  <title>AURA FASHION - Brand Catalog</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-6 md:p-12">
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8">
 
-  <header class="max-w-6xl mx-auto mb-10 border-b border-slate-800 pb-6">
-    <h1 class="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
-      AURA Brand News Tracker
-    </h1>
-    <p class="text-slate-400 mt-2 text-sm">
-      全ブランドの公式プレスリリースおよび一次情報をリアルタイム参照
-    </p>
+  <!-- ヘッダー -->
+  <header class="max-w-7xl mx-auto mb-6 border-b border-slate-800 pb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-amber-200 via-rose-300 to-indigo-300 bg-clip-text text-transparent">
+        AURA FASHION
+      </h1>
+      <p class="text-slate-400 text-xs mt-1">ブランド別・アイテム別 リアルタイムファッションカタログ</p>
+    </div>
+    
+    <div id="item-count" class="text-xs text-slate-400 bg-slate-900 px-3.5 py-1.5 rounded-full border border-slate-800 w-fit">
+      データを読み込み中...
+    </div>
   </header>
 
-  <main class="max-w-6xl mx-auto">
-    <div id="loading" class="text-center text-slate-400 py-12">データを読み込み中...</div>
-    <div id="product-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
+  <!-- コントロールパネル -->
+  <div class="max-w-7xl mx-auto mb-8 bg-slate-900/90 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
+    
+    <!-- 検索バー ＆ ソート -->
+    <div class="flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <input type="text" id="search-input" placeholder="ブランド名、アイテム名、キーワードで自由検索..." 
+               class="w-full bg-slate-800 border border-slate-700 text-sm rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-rose-400 transition-all">
+      </div>
+
+      <select id="sort-select" class="bg-slate-800 border border-slate-700 text-sm rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-rose-400">
+        <option value="brand-asc">ブランド名 (50音・A-Z順)</option>
+        <option value="price-asc">価格の安い順</option>
+        <option value="price-desc">価格の高い順</option>
+        <option value="newest">新着順</option>
+      </select>
+    </div>
+
+    <!-- アイテム（カテゴリ）フィルター -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-b border-slate-800/60 pb-3">
+      <span class="text-xs font-semibold text-rose-400 whitespace-nowrap mr-1">アイテム:</span>
+      <div id="category-filters" class="flex gap-1.5 flex-nowrap">
+        <button data-cat="ALL" class="cat-btn bg-rose-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap">
+          すべてのアイテム
+        </button>
+      </div>
+    </div>
+
+    <!-- ブランドフィルター (50音順) -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      <span class="text-xs font-semibold text-indigo-400 whitespace-nowrap mr-1">ブランド:</span>
+      <div id="brand-filters" class="flex gap-1.5 flex-nowrap">
+        <button data-brand="ALL" class="brand-btn bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap">
+          全ブランド
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- メインコンテンツ -->
+  <main class="max-w-7xl mx-auto">
+    <div id="loading" class="text-center text-slate-400 py-20 flex flex-col items-center gap-3">
+      <div class="w-8 h-8 border-2 border-rose-400 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-sm">全データを読み込み中...</p>
+    </div>
+
+    <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 hidden"></div>
   </main>
 
   <script>
     const SUPABASE_URL = 'https://wimjkvkprixuumnuabjd.supabase.co';
-    const SUPABASE_KEY = 'EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbWprdmtwcml4dXVtbnVhYmpkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODc5NTI4NSwiZXhwIjoyMTA0MzcxMjg1fQ.5TcA2jjunBmi45tJL9IO8oYMnIM68fqFMBlgO5U1WtA';
+    const SUPABASE_KEY = 'sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU';
     
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    async function fetchProducts() {
+    let allProducts = [];
+    let activeBrand = 'ALL';
+    let activeCategory = 'ALL';
+
+    // 全件取得（ページネーション処理）
+    async function loadCatalog() {
       const loadingEl = document.getElementById('loading');
       const gridEl = document.getElementById('product-grid');
 
       try {
-        const { data, error } = await supabaseClient
-          .from('products')
-          .select('*')
-          .limit(100);
+        let page = 0;
+        const pageSize = 1000;
+        let fetchedData = [];
+        let hasMore = true;
 
-        if (error) {
-          console.error('Supabase Error:', error);
-          loadingEl.innerHTML = `<span class="text-red-400 font-bold">【Supabaseエラー】<br>${error.message || JSON.stringify(error)}</span>`;
-          return;
+        while (hasMore) {
+          const { data, error } = await supabaseClient
+            .from('products')
+            .select('*')
+            .range(page * pageSize, (page + 1) * pageSize - 1);
+
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            fetchedData = [...fetchedData, ...data];
+            if (data.length < pageSize) hasMore = false;
+            page++;
+          } else {
+            hasMore = false;
+          }
         }
 
-        if (!data || data.length === 0) {
-          loadingEl.innerText = 'データが0件です。DBにレコードが存在するか確認してください。';
-          return;
-        }
-
+        allProducts = fetchedData;
         loadingEl.classList.add('hidden');
         gridEl.classList.remove('hidden');
 
-        gridEl.innerHTML = data.map(item => `
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 hover:border-blue-500 transition-all flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  ${item.brand || 'Brand'}
-                </span>
-                <span class="text-xs text-slate-400">${item.release_date || 'NEW'}</span>
-              </div>
-              <h2 class="font-medium text-base text-slate-100 line-clamp-2 mb-4">
-                ${item.product_name || '名称未設定'}
-              </h2>
-            </div>
-            <a href="${item.source_url}" target="_blank" rel="noopener noreferrer" style="display: block; text-align: center; padding: 8px 16px; background-color: #2563eb; color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">
-              公式ソースを開く ↗
-            </a>
-          </div>
-        `).join('');
+        setupFilters();
+        renderProducts();
       } catch (err) {
-        console.error('System Error:', err);
-        loadingEl.innerHTML = `<span class="text-red-400 font-bold">【通信エラー】<br>${err.message}</span>`;
+        console.error('Catalog Error:', err);
+        loadingEl.innerHTML = `<span class="text-rose-400 text-sm">【データ取得エラー】<br>${err.message}</span>`;
       }
     }
 
-    fetchProducts();
+    // フィルターボタン動的生成
+    function setupFilters() {
+      // ブランド一覧
+      const brandContainer = document.getElementById('brand-filters');
+      const brands = [...new Set(allProducts.map(p => p.brand || 'その他'))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ja'));
+
+      brands.forEach(brand => {
+        const btn = document.createElement('button');
+        btn.dataset.brand = brand;
+        btn.className = 'brand-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
+        btn.innerText = brand;
+        btn.onclick = () => filterByBrand(brand);
+        brandContainer.appendChild(btn);
+      });
+
+      // カテゴリ（アイテム）一覧
+      const catContainer = document.getElementById('category-filters');
+      const categories = [...new Set(allProducts.map(p => p.category || p.item_type || p.type || 'その他'))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ja'));
+
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.dataset.cat = cat;
+        btn.className = 'cat-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
+        btn.innerText = cat;
+        btn.onclick = () => filterByCategory(cat);
+        catContainer.appendChild(btn);
+      });
+    }
+
+    function filterByBrand(brand) {
+      activeBrand = brand;
+      document.querySelectorAll('.brand-btn').forEach(btn => {
+        if (btn.dataset.brand === brand) {
+          btn.className = 'brand-btn bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap';
+        } else {
+          btn.className = 'brand-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
+        }
+      });
+      renderProducts();
+    }
+
+    function filterByCategory(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'cat-btn bg-rose-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-all whitespace-nowrap';
+        } else {
+          btn.className = 'cat-btn bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-1.5 rounded-lg transition-all border border-slate-700/50 whitespace-nowrap';
+        }
+      });
+      renderProducts();
+    }
+
+    // 価格フォーマット関数の強化
+    function parsePrice(item) {
+      const rawPrice = item.price || item.product_price || item.formatted_price || item.price_str;
+      if (!rawPrice) return { num: 0, display: '価格記載なし' };
+
+      if (typeof rawPrice === 'number') {
+        return { num: rawPrice, display: `¥${rawPrice.toLocaleString()}` };
+      }
+
+      // 文字列から数値だけ抽出（例: "￥12,800(税込)" -> 12800）
+      const cleaned = String(rawPrice).replace(/[^0-9]/g, '');
+      const num = parseInt(cleaned, 10);
+
+      if (!isNaN(num) && num > 0) {
+        return { num: num, display: `¥${num.toLocaleString()}` };
+      }
+
+      return { num: 0, display: String(rawPrice) };
+    }
+
+    // 描画 & ソート
+    function renderProducts() {
+      const gridEl = document.getElementById('product-grid');
+      const searchVal = document.getElementById('search-input').value.toLowerCase();
+      const sortVal = document.getElementById('sort-select').value;
+
+      let items = allProducts.filter(item => {
+        const itemCat = item.category || item.item_type || item.type || 'その他';
+        const matchBrand = activeBrand === 'ALL' || (item.brand || 'その他') === activeBrand;
+        const matchCat = activeCategory === 'ALL' || itemCat === activeCategory;
+        
+        const matchSearch = (item.product_name || '').toLowerCase().includes(searchVal) || 
+                            (item.brand || '').toLowerCase().includes(searchVal) ||
+                            itemCat.toLowerCase().includes(searchVal);
+
+        return matchBrand && matchCat && matchSearch;
+      });
+
+      // ソート処理
+      items.sort((a, b) => {
+        const pA = parsePrice(a).num;
+        const pB = parsePrice(b).num;
+
+        if (sortVal === 'brand-asc') {
+          return (a.brand || '').localeCompare(b.brand || '', 'ja');
+        } else if (sortVal === 'price-asc') {
+          return pA - pB;
+        } else if (sortVal === 'price-desc') {
+          return pB - pA;
+        } else if (sortVal === 'newest') {
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        }
+      });
+
+      document.getElementById('item-count').innerText = `表示中: ${items.length} 件 / 全 ${allProducts.length} 件`;
+
+      if (items.length === 0) {
+        gridEl.innerHTML = '<div class="col-span-full text-center text-slate-500 py-12 text-sm">条件に一致する商品が見つかりませんでした。</div>';
+        return;
+      }
+
+      gridEl.innerHTML = items.map(item => {
+        const priceInfo = parsePrice(item);
+        const imgUrl = item.image_url || item.img_url || item.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';
+
+        return `
+          <div class="group bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden hover:border-slate-700 transition-all flex flex-col justify-between">
+            <div>
+              <!-- 画像 -->
+              <div class="aspect-square w-full bg-slate-800 overflow-hidden relative">
+                <img src="${imgUrl}" alt="${item.product_name || 'Item'}" 
+                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';">
+                <span class="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-md text-slate-300 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-slate-800">
+                  ${item.brand || 'Brand'}
+                </span>
+              </div>
+
+              <!-- 情報 -->
+              <div class="p-3.5">
+                <h2 class="font-medium text-xs md:text-sm text-slate-200 line-clamp-2 mb-2 group-hover:text-rose-300 transition-colors">
+                  ${item.product_name || '名称未設定'}
+                </h2>
+              </div>
+            </div>
+
+            <div class="p-3.5 pt-0">
+              <div class="text-sm font-bold text-rose-300 mb-3">
+                ${priceInfo.display}
+              </div>
+              <a href="${item.source_url || '#'}" target="_blank" rel="noopener noreferrer" 
+                 class="block text-center text-xs font-semibold py-2 px-3 bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-300 rounded-xl transition-all">
+                詳細を見る ↗
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // リスナ設定
+    document.getElementById('search-input').addEventListener('input', renderProducts);
+    document.getElementById('sort-select').addEventListener('change', renderProducts);
+
+    loadCatalog();
   </script>
 </body>
 </html>

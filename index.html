@@ -26,45 +26,55 @@
   <script>
     const SUPABASE_URL = 'https://wimjkvkprixuumnuabjd.supabase.co';
     const SUPABASE_KEY = 'Sb_publishable_lS7N-qJOa6davBdF219uHg_x7fjrbZU';
+    
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function fetchProducts() {
-      const { data, error } = await supabaseClient
-        .from('products')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(100);
-
       const loadingEl = document.getElementById('loading');
       const gridEl = document.getElementById('product-grid');
 
-      if (error) {
-        console.error('Error fetching data:', error);
-        loadingEl.innerText = 'データの取得に失敗しました。';
-        return;
-      }
+      try {
+        const { data, error } = await supabaseClient
+          .from('products')
+          .select('*')
+          .limit(100);
 
-      loadingEl.classList.add('hidden');
-      gridEl.classList.remove('hidden');
+        if (error) {
+          console.error('Supabase Error:', error);
+          loadingEl.innerHTML = `<span class="text-red-400 font-bold">【Supabaseエラー】<br>${error.message || JSON.stringify(error)}</span>`;
+          return;
+        }
 
-      gridEl.innerHTML = data.map(item => `
-        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 hover:border-blue-500 transition-all flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                ${item.brand}
-              </span>
-              <span class="text-xs text-slate-400">${item.release_date || 'NEW'}</span>
+        if (!data || data.length === 0) {
+          loadingEl.innerText = 'データが0件です。DBにレコードが存在するか確認してください。';
+          return;
+        }
+
+        loadingEl.classList.add('hidden');
+        gridEl.classList.remove('hidden');
+
+        gridEl.innerHTML = data.map(item => `
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 hover:border-blue-500 transition-all flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  ${item.brand || 'Brand'}
+                </span>
+                <span class="text-xs text-slate-400">${item.release_date || 'NEW'}</span>
+              </div>
+              <h2 class="font-medium text-base text-slate-100 line-clamp-2 mb-4">
+                ${item.product_name || '名称未設定'}
+              </h2>
             </div>
-            <h2 class="font-medium text-base text-slate-100 line-clamp-2 mb-4">
-              ${item.product_name}
-            </h2>
+            <a href="${item.source_url}" target="_blank" rel="noopener noreferrer" style="display: block; text-align: center; padding: 8px 16px; background-color: #2563eb; color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">
+              公式ソースを開く ↗
+            </a>
           </div>
-          <a href="${item.source_url}" target="_blank" rel="noopener noreferrer" style="display: block; text-align: center; padding: 8px 16px; background-color: #2563eb; color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">
-            公式ソースを開く ↗
-          </a>
-        </div>
-      `).join('');
+        `).join('');
+      } catch (err) {
+        console.error('System Error:', err);
+        loadingEl.innerHTML = `<span class="text-red-400 font-bold">【通信エラー】<br>${err.message}</span>`;
+      }
     }
 
     fetchProducts();
